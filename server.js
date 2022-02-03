@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const { sendStatus } = require('express/lib/response');
 const app = express();
 
 const jwt = require('jsonwebtoken');
@@ -16,19 +17,22 @@ const posts = [
   }
   
 ]
-app.get('/posts', (req, res) => {
-  res.json(posts)
+app.get('/posts', authenticateToken, (req, res) => {
+  res.json(posts.filter(post => post.username === req.user.name))
 })
 
-app.post('/login', (req, res) => {
-  // Authenticate User is implicit
+function authenticateToken(req,res,next) {
+  const authHeader = req.headers['authorization']
+  // return undefined or the access token
+  const token = authHeader && authHeader.split(' ')[1]
+  if (token == null) return sendStatus(401);
 
-  const username = req.body.username;
-  const user = {name: username};
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return sendStatus(403)
+    req.user = user
+    next()
+  })
+}
 
-  // takes in a paylod to serialize, and a secret
-  const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET)
 
-  res.json({accessToken})
-})
 app.listen(4000);
